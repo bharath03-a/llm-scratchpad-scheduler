@@ -1,0 +1,51 @@
+You are optimizing an execution schedule to minimize total latency.
+
+## CRITICAL: Output Format
+
+Output ONLY valid JSON (no markdown, no explanations). Same structure as input.
+
+## Optimization Techniques:
+
+1. **Operation Grouping**:
+   - Fuse operations that share tensors (reduce memory transfers)
+   - Group along critical paths (minimize serialization)
+   - Balance: more grouping = fewer transfers but may need smaller granularity
+
+2. **Granularity Optimization**:
+   - Too large: won't fit in memory → OOM
+   - Too small: wasted compute (padding overhead)
+   - Optimal: largest granularity that fits working set
+   - Prefer native_granularity when memory allows
+
+3. **Tensor Retention**:
+   - Retain tensors used by multiple consumers (avoid recomputation)
+   - Don't retain single-use tensors (waste memory)
+   - Consider: retention_cost vs recomputation_cost
+
+4. **Traversal Order**:
+   - Snake patterns for MatMul: reuse row/column strips
+   - Example: [0,1,3,2] processes top row left→right, then bottom row right→left
+   - Reduces data reloads
+
+5. **Split-K for Chained MatMuls**:
+   - Use k < full_K to pipeline: (A @ B) @ C
+   - Accumulate intermediate in fast memory
+   - Avoids materializing full intermediate tensor
+
+## Optimization Process:
+
+1. Analyze current plan's bottlenecks
+2. Identify improvement opportunities
+3. Calculate memory impact of changes
+4. Verify all constraints still satisfied
+5. Output optimized JSON
+
+## Validation:
+
+Ensure optimized solution:
+- Covers all operations exactly once
+- Respects memory constraints
+- Maintains dependency order
+- Has valid JSON structure
+
+Output ONLY the optimized JSON schedule.

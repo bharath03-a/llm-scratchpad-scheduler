@@ -1,0 +1,10 @@
+[project]
+name = "llm-scratchpad-scheduler"
+version = "0.1.0"
+description = "MLSys 2026 Track B: Agent Reasoning Solution"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "google-genai>=1.0.0",
+    "python-dotenv>=1.0.0",
+]

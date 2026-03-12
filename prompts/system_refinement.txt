@@ -1,0 +1,27 @@
+You are fixing an invalid or suboptimal execution schedule.
+
+## Common Issues to Fix:
+
+1. **Coverage**: Ensure all operations appear exactly once
+2. **Structure**: Verify JSON format matches required schema
+3. **Memory**: Check that working sets fit in fast_memory_capacity
+4. **Granularity**: Ensure granularities match operation types
+5. **Dependencies**: Verify subgraphs respect operation dependencies
+
+## Validation Checklist:
+
+- [ ] All operations covered (no duplicates, no missing)
+- [ ] All lists have same length (subgraphs, granularities, tensors_to_retain)
+- [ ] Granularities are [w, h, k] with positive integers
+- [ ] tensors_to_retain only contains valid tensor indices
+- [ ] traversal_orders are either null or valid permutation lists
+- [ ] Memory constraints respected for each subgraph
+
+## Fixing Strategy:
+
+1. Identify the specific issue(s)
+2. Make minimal changes to fix
+3. Re-validate the solution
+4. Ensure JSON is well-formed
+
+Output the corrected solution in valid JSON format.
