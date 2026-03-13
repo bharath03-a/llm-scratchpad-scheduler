@@ -180,7 +180,9 @@ async def _run_pipeline(
     best = _rank_valid(valid_candidates)
 
     # ── PHASE 4: Optimise best valid solution ────────────────────────────
-    if best is not None and time_left() > 40:
+    if best is None:
+        console.print(Panel("[bold dim]Phase 4 / 5 — Skipped (no valid candidate from planners)[/bold dim]"))
+    elif time_left() > 40:
         console.print(Panel("[bold cyan]Phase 4 / 5 — Optimisation Pass[/bold cyan]"))
         optimizer = OptimizerAgent(client, model_name)
         try:
@@ -204,8 +206,8 @@ async def _run_pipeline(
                         console.print("[dim]Optimised solution not better — keeping original.[/dim]")
         except Exception as exc:
             console.print(f"[yellow]Optimisation failed ({exc}), keeping best candidate[/yellow]")
-    else:
-        console.print(Panel("[bold dim]Phase 4 / 5 — Skipped (timeout budget)[/bold dim]"))
+    elif best is not None:  # time_left() <= 40
+        console.print(Panel("[bold dim]Phase 4 / 5 — Skipped (time budget too low)[/bold dim]"))
 
     # ── PHASE 5: Refinement (if no valid candidate yet) ──────────────────
     if best is None:

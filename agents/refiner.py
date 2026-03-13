@@ -53,8 +53,13 @@ class RefinerAgent(BaseAgent):
    - Dependency order: producer subgraph step ≤ consumer subgraph step.
 5. Output ONLY valid JSON, no markdown.
 """
-        print(f"  [Refiner] Fixing {len(errors)} error(s)...", file=sys.stderr)
-        text = await self._call_llm(prompt, temperature=0.1, max_tokens=4096, json_output=True, label="Refiner")
+        num_ops = len(problem["op_types"])
+        max_tokens = max(8192, min(65536, num_ops * 1000))
+        print(f"  [Refiner] Fixing {len(errors)} error(s) (max_tokens={max_tokens}, thinking=off)...", file=sys.stderr)
+        text = await self._call_llm(
+            prompt, temperature=0.1, max_tokens=max_tokens,
+            json_output=True, label="Refiner", thinking_budget=0,
+        )
         result = self.extract_json(text)
         if result:
             print("  [Refiner] Done.", file=sys.stderr)

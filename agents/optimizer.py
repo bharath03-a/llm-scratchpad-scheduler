@@ -64,8 +64,13 @@ class OptimizerAgent(BaseAgent):
 
 Output ONLY the optimized JSON (same structure, no markdown).
 """
-        print("  [Optimizer] Optimizing solution...", file=sys.stderr)
-        text = await self._call_llm(prompt, temperature=0.25, max_tokens=4096, json_output=True, label="Optimizer")
+        num_ops = len(problem["op_types"])
+        max_tokens = max(8192, min(65536, num_ops * 1000))
+        print(f"  [Optimizer] Optimizing solution (max_tokens={max_tokens}, thinking=off)...", file=sys.stderr)
+        text = await self._call_llm(
+            prompt, temperature=0.25, max_tokens=max_tokens,
+            json_output=True, label="Optimizer", thinking_budget=0,
+        )
         result = self.extract_json(text)
         if result:
             print("  [Optimizer] Done.", file=sys.stderr)

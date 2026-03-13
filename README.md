@@ -210,3 +210,11 @@ orchestrator = Orchestrator(api_key, model_name="gemini-2.5-pro")
 ## Timeout
 
 The agent runs a hard 9.5-minute budget (competition limit is 10 minutes). Phases are skipped if the remaining budget is insufficient — the fallback deterministic solution is always returned within the time limit.
+
+---
+
+## Benchmark Results
+
+Run `uv run python3 score.py` to evaluate all problems in `data/` against the deterministic fallback baseline.
+
+![Benchmark Results](img/image.png)

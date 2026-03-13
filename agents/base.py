@@ -75,13 +75,18 @@ class BaseAgent:
         max_tokens: int = 4096,
         json_output: bool = True,
         label: str = "",
+        thinking_budget: int = 0,
     ) -> str:
-        """Make an async LLM call with retry logic."""
+        """Make an async LLM call with retry logic.
+
+        thinking_budget: Token budget for model thinking (0 = disabled).
+        Gemini 2.5 Flash counts thinking tokens against max_output_tokens, so
+        disabling thinking frees the full budget for actual JSON/text output.
+        """
         config: dict[str, Any] = {
             "temperature": temperature,
-            "top_p": 0.95,
-            "top_k": 40,
             "max_output_tokens": max_tokens,
+            "thinking_config": {"thinking_budget": thinking_budget},
         }
         if json_output:
             config["response_mime_type"] = "application/json"
@@ -93,7 +98,15 @@ class BaseAgent:
                     contents=prompt,
                     config=config,
                 )
-                return response.text or ""
+                text = response.text or ""
+                if not text:
+                    candidate = response.candidates[0] if response.candidates else None
+                    finish = getattr(candidate, "finish_reason", "?")
+                    tag = f"[{label}] " if label else ""
+                    print(f"{tag}Attempt {attempt + 1}: empty response — finish_reason={finish}", file=sys.stderr)
+                    if attempt < self.DEFAULT_MAX_RETRIES - 1:
+                        continue
+                return text
             except Exception as exc:
                 tag = f"[{label}] " if label else ""
                 print(f"{tag}Attempt {attempt + 1}/{self.DEFAULT_MAX_RETRIES} failed: {exc}", file=sys.stderr)
@@ -107,6 +120,14 @@ class BaseAgent:
         temperature: float = 0.1,
         max_tokens: int = 2048,
         label: str = "",
+        thinking_budget: int = 4096,
     ) -> str:
-        """Make an async LLM call expecting free-text (not JSON)."""
-        return await self._call_llm(prompt, temperature, max_tokens, json_output=False, label=label)
+        """Make an async LLM call expecting free-text (not JSON).
+
+        Uses a moderate thinking budget by default — useful for analysis tasks
+        that benefit from reasoning before producing text.
+        """
+        return await self._call_llm(
+            prompt, temperature, max_tokens,
+            json_output=False, label=label, thinking_budget=thinking_budget,
+        )

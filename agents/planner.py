@@ -94,13 +94,25 @@ Output this exact JSON structure:
   "subgraph_latencies": [3276.8, 2048.0]
 }}
 """
-        print(f"  [Planner/{strategy}] Generating schedule...", file=sys.stderr)
-        text = await self._call_llm(prompt, temperature=0.2, max_tokens=4096, json_output=True, label=f"Planner/{strategy}")
+        # Scale output tokens with problem size.
+        # Thinking is disabled (thinking_budget=0) so the full budget goes to JSON output.
+        num_ops = len(problem["op_types"])
+        max_tokens = max(8192, min(65536, num_ops * 1000))
+
+        print(f"  [Planner/{strategy}] Generating schedule (max_tokens={max_tokens}, thinking=off)...", file=sys.stderr)
+        text = await self._call_llm(
+            prompt, temperature=0.2, max_tokens=max_tokens,
+            json_output=True, label=f"Planner/{strategy}",
+            thinking_budget=0,
+        )
         result = self.extract_json(text)
         if result:
             print(f"  [Planner/{strategy}] Done.", file=sys.stderr)
         else:
-            print(f"  [Planner/{strategy}] Failed to parse JSON.", file=sys.stderr)
+            head = text[:300] if text else "<empty>"
+            tail = text[-200:] if len(text) > 300 else ""
+            snippet = f"{head}…[{len(text)} chars total]…{tail}" if tail else (head or "<empty>")
+            print(f"  [Planner/{strategy}] Failed to parse JSON ({len(text)} chars). Snippet: {snippet!r}", file=sys.stderr)
         return result
 
 

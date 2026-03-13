@@ -60,6 +60,32 @@ def find_optimal_granularity(
     return None  # No valid granularity – subgraph grouping is infeasible
 
 
+def _feasible_retentions(
+    retain_list: list[int],
+    produced: set[int],
+    problem: dict[str, Any],
+) -> list[int]:
+    """
+    Return the subset of retain_list that can physically fit in fast memory.
+
+    Retained tensors are stored at FULL size (not tiled) between subgraphs.
+    A tensor is infeasible to retain if its full size alone exceeds fast_memory_capacity
+    (it would immediately cause an OOM for the next step, regardless of granularity).
+    We also enforce that the combined retained size stays below capacity.
+    """
+    capacity = problem["fast_memory_capacity"]
+    feasible: list[int] = []
+    cumulative = 0
+    for t in retain_list:
+        if t not in produced:
+            continue  # Can only retain tensors produced by this step
+        size = problem["widths"][t] * problem["heights"][t]
+        if cumulative + size < capacity:
+            feasible.append(t)
+            cumulative += size
+    return feasible
+
+
 def optimize_granularities(
     problem: dict[str, Any],
     solution: dict[str, Any],
@@ -67,12 +93,15 @@ def optimize_granularities(
     """
     Post-process a solution by replacing LLM-chosen granularities with
     the deterministically optimal (largest valid) ones.
+    Also prunes tensors_to_retain entries that would overflow fast memory
+    (retained tensors are full-size, so a 1M tensor in a 250K scratchpad is invalid).
     Returns updated solution dict or None if any subgraph has no valid granularity.
     """
     subgraphs = solution["subgraphs"]
     tensors_to_retain = solution.get("tensors_to_retain", [[] for _ in subgraphs])
 
     new_granularities: list[list[int]] = []
+    new_tensors_to_retain: list[list[int]] = []
     tensors_in_memory: set[int] = set()
 
     for sg, retain_list in zip(subgraphs, tensors_to_retain):
@@ -81,10 +110,12 @@ def optimize_granularities(
             return None  # This grouping is infeasible
         new_granularities.append(gran)
 
-        # Update memory state
+        # Update memory state — only retain tensors that physically fit
         produced: set[int] = set()
         for op in sg:
             produced.update(problem["outputs"][op])
-        tensors_in_memory = {t for t in produced if t in set(retain_list)}
+        feasible = _feasible_retentions(retain_list, produced, problem)
+        new_tensors_to_retain.append(feasible)
+        tensors_in_memory = set(feasible)
 
-    return {**solution, "granularities": new_granularities}
+    return {**solution, "granularities": new_granularities, "tensors_to_retain": new_tensors_to_retain}
