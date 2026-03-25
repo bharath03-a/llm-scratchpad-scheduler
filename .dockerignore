@@ -1,0 +1,15 @@
+.venv
+__pycache__
+*.py[oc]
+.env
+.git
+.gitignore
+docs/
+tests/
+metrics/
+img/
+output/
+*.md
+*.lock
+*.toml
+.DS_Store

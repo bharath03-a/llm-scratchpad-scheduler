@@ -115,6 +115,9 @@ flowchart TD
 │   ├── system_optimization.txt
 │   ├── system_refinement.txt
 │   └── few_shot_examples.json
+├── Dockerfile            # Competition-mirror sandbox (Python 3.12-slim)
+├── docker-compose.yml    # Convenience wrapper with volume mounts
+├── requirements.txt      # Pinned dependencies (submission-ready)
 ├── PROBLEM.md            # Full problem specification
 ├── OPTIMIZATIONS.md      # Implementation notes
 └── pyproject.toml
@@ -160,6 +163,27 @@ uv run python3 agent.py input.json output.json
 ```
 
 The agent writes the solution to `output.json` and streams progress to stderr.
+
+---
+
+## Docker
+
+Run the agent in an isolated container that mirrors the competition sandbox:
+
+```bash
+# Build once
+docker build -t mlsys-agent .
+
+# Run on any problem (mounts data/ and output/ as volumes)
+docker run --rm \
+  --env GOOGLE_API_KEY=$(grep GOOGLE_API_KEY .env | cut -d= -f2) \
+  -v $(pwd)/data:/data:ro \
+  -v $(pwd)/output:/output \
+  mlsys-agent /data/example_problem.json /output/example_problem.json
+
+# Or via docker-compose (runs example_problem.json by default)
+docker compose run agent
+```
 
 ---
 

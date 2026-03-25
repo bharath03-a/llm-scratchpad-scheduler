@@ -1,0 +1,15 @@
+services:
+  agent:
+    build: .
+    env_file: .env                        # reads GOOGLE_API_KEY from .env
+    volumes:
+      - ./data:/data:ro                   # input problems (read-only)
+      - ./output:/output                  # solutions written here
+    command: ["/data/example_problem.json", "/output/example_problem.json"]
+
+    # Mirrors competition constraints:
+    #   - 10-minute hard timeout
+    #   - network restricted to Gemini API only
+    stop_grace_period: 5s
+    # To restrict network, uncomment below and add an allow-list firewall rule:
+    # network_mode: "none"                # full block (Gemini calls will also fail)
