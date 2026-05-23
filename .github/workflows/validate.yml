@@ -1,0 +1,39 @@
+name: Validate Outputs
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  validate:
+    name: Re-score existing output/ files
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+
+      - name: Validate every output against score.py
+        run: |
+          python3 metrics/score.py | tee /tmp/score.txt
+          if grep -qE "INVALID|error:" /tmp/score.txt; then
+            echo "::error::One or more outputs failed validation"
+            exit 1
+          fi
+        env:
+          PYTHONUNBUFFERED: "1"
