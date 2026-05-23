@@ -1,6 +1,11 @@
-# MLSys 2026 Track B — DAG Scheduling Agent
+# 🥈 A Multi-Agent LLM Pipeline for Memory-Constrained Tensor DAG Scheduling
+
+> **2nd place (Agent-only)** · MLSys 2026 — Track B
+> **7.77× aggregate speedup** over the one-op-per-subgraph baseline · **88× best case** · 25/25 problems validate cleanly
 
 An agentic solution to the MLSys 2026 Track B scheduling challenge: given a DAG of tensor operations and a hardware memory hierarchy, produce an execution schedule that **minimises total latency** while respecting all fast-memory capacity constraints.
+
+Neurosymbolic split — LLM proposes structure (op fusion, retention, traversal); a deterministic solver finalises numerics ([w, h, k], dependency ordering, latency).
 
 ---
 
@@ -18,6 +23,16 @@ Full problem specification: [PROBLEM.md](PROBLEM.md)
 ---
 
 ## Architecture
+
+<p align="center">
+  <video src="docs/media/pipeline.mp4" controls autoplay loop muted playsinline width="100%"></video>
+  <br/>
+  <em>Pipeline animation — five phases, always-valid fallback. (If video does not play, see the GIF below.)</em>
+</p>
+
+<p align="center">
+  <img src="docs/media/pipeline.gif" alt="Pipeline animation" width="100%"/>
+</p>
 
 ```mermaid
 flowchart TD
@@ -231,9 +246,41 @@ orchestrator = Orchestrator(api_key, model_name="gemini-2.5-pro")
 
 ---
 
-## Timeout
+## Timeout — Time-Aware Budget Cascade
 
-The agent runs a hard 9.5-minute budget (competition limit is 10 minutes). Phases are skipped if the remaining budget is insufficient — the fallback deterministic solution is always returned within the time limit.
+The competition allows **10 minutes per problem**. The agent enforces a stricter internal cap of **9.5 minutes** (`TIMEOUT_SECONDS = 570` in `orchestrator.py`), leaving 30 seconds for JSON I/O and writing the fallback if anything stalls. The pipeline is structured so it **cannot exceed the budget and cannot return nothing.**
+
+### Per-phase budget scoping
+
+Each LLM phase reads `time_left()` before firing and grabs only a fraction of remaining time, capped by a fixed ceiling. If the budget is too tight, the phase skips itself.
+
+| Phase | Timeout                        | Skip condition                                      |
+| ----- | ------------------------------ | --------------------------------------------------- |
+| 1 · Analyzer  | `min(60s, 15% remaining)`  | catches any exception, continues with empty context |
+| 2 · Planners  | `min(120s, 35% remaining)` | catches any exception, returns empty plan list      |
+| 3 · Solver    | deterministic, no LLM     | never skipped                                       |
+| 4 · Optimizer | `min(60s, 25% remaining)`  | **skipped if `time_left() ≤ 40s`**                 |
+| 5 · Refiner   | `min(45s, remaining − 10s)` per iteration (≤3 iters) | **break if `time_left() < 15s`** |
+| Greedy fallback | runs in milliseconds, deterministic | always available |
+
+`asyncio.wait_for()` cancels any phase that exceeds its slice, so a single hanging LLM call cannot eat the whole budget.
+
+### Three-tier fallback hierarchy
+
+Every level has an escape hatch. The schedule that ships is the best one available at the moment time runs out:
+
+1. **Best valid candidate** — `_rank_valid()` picks the lowest-latency schedule from the three planners after deterministic validation.
+2. **Refined invalid candidate** — if no planner produced a valid schedule, the Refiner gets the exact validator errors (Reflexion-style) and retries up to 3×.
+3. **Greedy fallback** — one op per subgraph in topological order, with `find_optimal_granularity()` per op. Always valid by construction, always within budget.
+
+If even the orchestrator throws a fatal exception, `agent.py` catches it and writes `{}` to the output file — the file is **always** created, so the harness never sees a missing artifact.
+
+### Why this matters
+
+Competition harnesses often disqualify late or missing submissions. The cascade guarantees:
+- A valid schedule is produced no matter what fails (LLM, network, JSON parse, validator)
+- Total wall-clock stays inside 10 minutes
+- The output file always exists at `output.json`
 
 ---
 
@@ -242,3 +289,11 @@ The agent runs a hard 9.5-minute budget (competition limit is 10 minutes). Phase
 Run `uv run python3 score.py` to evaluate all problems in `data/` against the deterministic fallback baseline.
 
 ![Benchmark Results](img/image.png)
+
+---
+
+## License
+
+Apache License 2.0 — see [LICENSE](LICENSE).
+
+Copyright 2026 Bharath Velamala.
