@@ -11,6 +11,7 @@ Usage:
   uv run python3 score.py
   uv run python3 score.py --run    # also run the agent on every problem (slow)
 """
+
 from __future__ import annotations
 
 import argparse

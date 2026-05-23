@@ -25,12 +25,6 @@ Full problem specification: [PROBLEM.md](PROBLEM.md)
 ## Architecture
 
 <p align="center">
-  <video src="docs/media/pipeline.mp4" controls autoplay loop muted playsinline width="100%"></video>
-  <br/>
-  <em>Pipeline animation — five phases, always-valid fallback. (If video does not play, see the GIF below.)</em>
-</p>
-
-<p align="center">
   <img src="docs/media/pipeline.gif" alt="Pipeline animation" width="100%"/>
 </p>
 

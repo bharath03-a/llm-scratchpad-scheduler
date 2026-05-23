@@ -12,6 +12,16 @@ dependencies = [
     "rich>=14.3.3",
 ]
 
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+# Explicit package list — img/ and prompts/ are data dirs, not Python packages.
+# metrics/ is a script dir (no __init__.py).
+packages = ["agents", "core"]
+py-modules = ["agent", "orchestrator"]
+
 [tool.ruff]
 line-length = 110
 target-version = "py312"

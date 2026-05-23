@@ -13,7 +13,6 @@ from typing import Any
 from agents.base import BaseAgent
 from core.dag_utils import compute_analysis, format_analysis
 
-
 _SYSTEM_PROMPT = (Path(__file__).parent.parent / "prompts" / "system_analysis.txt").read_text()
 
 

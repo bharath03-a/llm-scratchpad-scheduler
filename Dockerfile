@@ -4,15 +4,24 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-# Install dependencies first (layer cache)
+# Copy package metadata first for dependency-only layer cache.
+# Install only declared dependencies (no source yet) so this layer reuses across edits.
 COPY pyproject.toml README.md ./
-RUN pip install --no-cache-dir .
+RUN pip install --no-cache-dir \
+      google-genai>=1.0.0 \
+      networkx>=3.6.1 \
+      pydantic>=2.12.5 \
+      python-dotenv>=1.0.0 \
+      rich>=14.3.3
 
-# Copy source
+# Copy source — keeps install logic separate from edit cache invalidation
 COPY agent.py orchestrator.py ./
 COPY agents/ agents/
 COPY core/ core/
 COPY prompts/ prompts/
+
+# Install the package itself (uses already-cached deps)
+RUN pip install --no-cache-dir --no-deps .
 
 # Data and output directories (mount these at runtime)
 RUN mkdir -p /data /output

@@ -13,7 +13,6 @@ from typing import Any
 
 from agents.base import BaseAgent
 
-
 _SYSTEM_PROMPT = (Path(__file__).parent.parent / "prompts" / "system_refinement.txt").read_text()
 _MAX_ITERATIONS = 3
 
