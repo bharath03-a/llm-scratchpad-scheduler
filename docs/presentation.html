@@ -1,0 +1,898 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Multi-Agent LLM Pipeline for Memory-Constrained DAG Scheduling</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Fraunces:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600;1,700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/dist/reset.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/dist/reveal.css">
+<style>
+  :root {
+    --bg: #f5f6fa;
+    --bg-2: #ffffff;
+    --bg-3: #eceef5;
+
+    --line: #dde0ec;
+    --line-mid: #c4c9e0;
+
+    --ink-faint: #9aa0bc;
+    --ink-dim:   #6b7499;
+    --ink-mute:  #4e5880;
+    --ink:       #2e3558;
+    --ink-hi:    #141a38;
+    --ink-pure:  #0a0e24;
+
+    --brand: #2563eb;
+    --brand-soft: #3b82f6;
+    --brand-deep: #1e40af;
+
+    --gold: #b45309;
+    --gold-hi: #d97706;
+
+    --green: #7fc99b;
+
+    --pad-x: clamp(40px, 5.5vw, 96px);
+    --pad-y: clamp(28px, 4vh, 64px);
+    --chrome-y: clamp(20px, 3vh, 36px);
+  }
+
+  html, body { background: var(--bg); width: 100%; height: 100%; margin: 0; padding: 0; overflow: hidden; }
+  .reveal { font-family: 'Inter', sans-serif; color: var(--ink); }
+
+  /* Slide canvas — full viewport overlap with fade */
+  .reveal { width: 100% !important; height: 100% !important; position: fixed; inset: 0; }
+  .reveal .slides {
+    text-align: left;
+    width: 100% !important; height: 100% !important;
+    position: absolute !important; top: 0 !important; left: 0 !important;
+    transform: none !important; perspective: none !important;
+  }
+  .reveal .slides > section {
+    box-sizing: border-box !important;
+    padding: var(--pad-y) var(--pad-x);
+    width: 100% !important; height: 100% !important;
+    position: absolute !important; top: 0 !important; left: 0 !important;
+    background: var(--bg);
+    overflow: hidden;
+    display: flex !important;
+    flex-direction: column;
+    justify-content: center;
+    transform: none !important;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+  }
+  .reveal .slides > section.present {
+    opacity: 1 !important;
+    visibility: visible !important;
+    z-index: 2;
+    pointer-events: auto;
+  }
+  .reveal .slides > section.cover,
+  .reveal .slides > section.closing {
+    align-items: stretch;
+  }
+
+  /* Chrome */
+  .deck-header {
+    position: absolute;
+    top: var(--chrome-y);
+    left: var(--pad-x);
+    right: var(--pad-x);
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: clamp(9px, 0.85vmin, 12px);
+    font-weight: 500;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    z-index: 5;
+  }
+  .deck-header .brand { display: inline-flex; align-items: center; gap: 0.9em; color: var(--ink-mute); }
+  .deck-header .brand .brand-mark { width: 1em; height: 1em; background: linear-gradient(135deg, var(--brand), var(--gold)); border-radius: 2px; transform: rotate(45deg); }
+  .deck-header .talk-id { font-family: 'JetBrains Mono', monospace; font-size: 0.85em; letter-spacing: 0.12em; color: var(--ink-faint); }
+
+  .deck-footer {
+    position: absolute;
+    bottom: var(--chrome-y);
+    left: var(--pad-x);
+    right: var(--pad-x);
+    display: flex; justify-content: space-between; align-items: baseline;
+    font-size: clamp(9px, 0.85vmin, 12px);
+    letter-spacing: 0.08em;
+    z-index: 5;
+  }
+  .deck-footer .section-label { font-weight: 500; text-transform: uppercase; letter-spacing: 0.22em; color: var(--ink-mute); }
+  .deck-footer .page-num { font-family: 'JetBrains Mono', monospace; color: var(--ink-mute); }
+  .deck-footer .page-num .current { color: var(--ink-hi); font-weight: 600; }
+  .deck-footer .page-num .sep { color: var(--ink-faint); margin: 0 4px; }
+
+  /* Cover */
+  .cover {
+    background:
+      radial-gradient(ellipse 60% 50% at 70% 30%, rgba(37, 99, 235, 0.08), transparent 60%),
+      radial-gradient(ellipse 50% 40% at 20% 80%, rgba(180, 83, 9, 0.06), transparent 60%),
+      var(--bg) !important;
+  }
+  .cover-inner {
+    width: 100%; max-width: 1600px; margin: 0 auto;
+    display: flex; flex-direction: column; justify-content: space-between;
+    flex: 1;
+    padding: clamp(20px, 3vh, 40px) 0;
+  }
+  .cover-top { display: flex; justify-content: space-between; align-items: center; font-size: clamp(10px, 1vmin, 13px); letter-spacing: 0.22em; text-transform: uppercase; color: var(--ink-mute); }
+  .cover-top .brand-row { display: inline-flex; align-items: center; gap: 0.8em; }
+  .cover-top .brand-row .mark { width: 1.1em; height: 1.1em; background: linear-gradient(135deg, var(--brand), var(--gold)); border-radius: 3px; transform: rotate(45deg); }
+  .cover-top .talk-id { font-family: 'JetBrains Mono', monospace; font-size: 0.85em; }
+  .cover-center { flex: 1; display: flex; flex-direction: column; justify-content: center; padding: clamp(20px, 4vh, 60px) 0; }
+  .cover-title {
+    font-family: 'Fraunces', serif;
+    font-weight: 500;
+    font-size: clamp(48px, 8.5vmin, 120px);
+    line-height: 1.0;
+    letter-spacing: -0.04em;
+    color: var(--ink-pure);
+    max-width: 92%;
+  }
+  .cover-title em {
+    font-style: italic;
+    font-weight: 500;
+    background: linear-gradient(135deg, var(--brand-soft) 0%, var(--gold) 100%);
+    -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .cover-sub {
+    margin-top: clamp(20px, 3vh, 40px);
+    font-size: clamp(16px, 1.9vmin, 24px);
+    color: var(--ink);
+    max-width: 70ch;
+    line-height: 1.6;
+    font-weight: 400;
+  }
+  .cover-bottom { display: flex; align-items: center; justify-content: space-between; padding-top: clamp(16px, 2.5vh, 32px); border-top: 1px solid var(--line); gap: 3vw; flex-wrap: wrap; }
+  .cover-bottom .b-label { font-size: clamp(8px, 0.85vmin, 11px); font-weight: 600; letter-spacing: 0.22em; text-transform: uppercase; color: var(--ink-faint); margin-bottom: 0.5em; }
+  .cover-bottom .b-value { font-size: clamp(12px, 1.3vmin, 17px); color: var(--ink-hi); font-weight: 500; }
+
+  /* Section content */
+  .slide-body {
+    width: 100%;
+    max-width: 1600px;
+    margin: 0 auto;
+    display: flex; flex-direction: column;
+    justify-content: center;
+    flex: 1;
+    min-height: 0;
+    padding: clamp(14px, 2.5vh, 28px) 0 clamp(10px, 1.5vh, 20px);
+  }
+
+  /* 4-card grids */
+  .slide-body .grid.g2:has(> :nth-child(3)) {
+    margin-top: clamp(10px, 1.5vh, 18px);
+  }
+
+  .slide-kicker {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: clamp(9px, 0.95vmin, 13px);
+    font-weight: 500;
+    letter-spacing: 0.15em;
+    color: var(--brand-soft);
+    margin-bottom: clamp(8px, 1.2vh, 18px);
+  }
+  .slide-kicker.gold { color: var(--gold); }
+
+  .reveal h1, .reveal h2, .reveal h3 { color: var(--ink-pure); margin: 0; }
+  .reveal .slides h2 {
+    font-family: 'Fraunces', serif;
+    font-weight: 500;
+    font-size: clamp(28px, 4vmin, 52px);
+    line-height: 1.08;
+    letter-spacing: -0.025em;
+    margin-bottom: clamp(8px, 1.2vh, 16px);
+    max-width: 92%;
+    color: var(--ink-pure);
+  }
+  .reveal .slides h2 em { font-style: italic; color: var(--gold); }
+  .reveal .slides h2 .mono { font-family: 'JetBrains Mono', monospace; font-style: normal; font-weight: 500; }
+
+  .slide-lede {
+    font-size: clamp(13px, 1.4vmin, 18px);
+    color: var(--ink-mute);
+    max-width: 90ch;
+    line-height: 1.55;
+    margin-bottom: clamp(18px, 2.8vh, 36px);
+  }
+
+  .reveal p { font-size: clamp(12px, 1.3vmin, 17px); color: var(--ink); line-height: 1.55; }
+  .reveal code, .mono { font-family: 'JetBrains Mono', monospace; }
+  .reveal code { font-size: 0.88em; background: rgba(91, 155, 223, 0.1); padding: 0.15em 0.5em; border-radius: 4px; color: var(--brand-soft); border: 1px solid rgba(91, 155, 223, 0.15); }
+  .reveal strong { color: var(--ink-hi); font-weight: 600; }
+  .reveal em { color: var(--brand-soft); font-style: italic; }
+
+  /* Generic card grid */
+  .grid { display: grid; gap: clamp(12px, 1.6vw, 22px); }
+  .g2 { grid-template-columns: 1fr 1fr; }
+  .g3 { grid-template-columns: repeat(3, 1fr); }
+  .g4 { grid-template-columns: repeat(4, 1fr); }
+  @media (max-aspect-ratio: 1/1) {
+    .g3, .g4 { grid-template-columns: 1fr; }
+    .g2 { grid-template-columns: 1fr; }
+  }
+
+  .card {
+    padding: clamp(18px, 2.5vh, 30px) clamp(18px, 2vw, 28px);
+    background: var(--bg-2);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    position: relative;
+  }
+  .card.accent-top { border-top: 2px solid var(--brand); }
+  .card.accent-left { border-left: 3px solid var(--brand); }
+  .card.gold-top { border-top: 2px solid var(--gold); }
+  .card .card-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: clamp(9px, 1vmin, 12px);
+    color: var(--brand);
+    letter-spacing: 0.18em;
+    margin-bottom: 0.6em;
+    text-transform: uppercase;
+  }
+  .card .card-tag.gold { color: var(--gold); }
+  .card h4 {
+    font-family: 'Fraunces', serif;
+    font-size: clamp(16px, 1.9vmin, 24px);
+    font-weight: 500;
+    color: var(--ink-pure);
+    margin: 0 0 0.4em;
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+  }
+  .card p {
+    font-size: clamp(11px, 1.2vmin, 15px);
+    color: var(--ink-mute);
+    line-height: 1.55;
+    margin: 0;
+  }
+  .card .dim { color: var(--ink-mute); }
+
+  /* Inline tag pills */
+  .tag {
+    display: inline-block;
+    padding: 0.3em 0.8em;
+    border: 1px solid var(--line-mid);
+    border-radius: 100px;
+    font-size: clamp(10px, 1.1vmin, 13px);
+    color: var(--brand-soft);
+    background: rgba(74, 135, 212, 0.06);
+    margin-right: 0.5em;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .tag.gold { color: var(--gold); background: rgba(230, 201, 146, 0.06); border-color: rgba(230, 201, 146, 0.3); }
+
+  /* Formula box */
+  .formula {
+    padding: clamp(14px, 2vh, 22px) clamp(20px, 2.5vw, 32px);
+    background: var(--bg-2);
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--brand);
+    border-radius: 0 8px 8px 0;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: clamp(12px, 1.4vmin, 16px);
+    color: var(--ink-hi);
+    line-height: 1.7;
+    margin: clamp(8px, 1.2vh, 16px) 0;
+  }
+  .formula .lhs { color: var(--gold); }
+  .formula .op { color: var(--ink-faint); }
+  .formula .cm { color: var(--ink-faint); font-style: italic; }
+
+  /* ===================================================
+     FLOW CHART (animated SVG)
+     =================================================== */
+  .flow-wrap {
+    width: 100%;
+    max-width: 1480px;
+    margin: 0 auto;
+  }
+  .flow-svg { width: 100%; height: auto; display: block; }
+  .flow-svg text {
+    font-family: 'Inter', sans-serif;
+    fill: var(--ink-hi);
+    font-size: 13px;
+    font-weight: 500;
+  }
+  .flow-svg text.label {
+    font-family: 'Fraunces', serif;
+    font-size: 16px;
+    font-weight: 500;
+    fill: var(--ink-pure);
+  }
+  .flow-svg text.sub {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    fill: var(--ink-mute);
+    letter-spacing: 0.05em;
+  }
+  .flow-svg text.tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    fill: var(--brand-soft);
+    letter-spacing: 0.1em;
+  }
+  .flow-svg text.tag.gold { fill: var(--gold); }
+  .flow-svg .path-line {
+    stroke: var(--line-mid);
+    stroke-width: 1.5;
+    fill: none;
+  }
+  .flow-svg .path-line.dashed {
+    stroke-dasharray: 4 4;
+    stroke: var(--ink-faint);
+  }
+  .flow-svg .node {
+    fill: var(--bg-2);
+    stroke: var(--line-mid);
+    stroke-width: 1.5;
+  }
+  .flow-svg .node.solver {
+    fill: rgba(180, 83, 9, 0.06);
+    stroke: var(--gold);
+  }
+  .flow-svg .node.llm {
+    fill: rgba(37, 99, 235, 0.06);
+    stroke: var(--brand);
+  }
+  .flow-svg .node.io {
+    fill: var(--bg-3);
+    stroke: var(--line-mid);
+  }
+  .flow-svg .node.safety {
+    fill: var(--bg-2);
+    stroke: var(--ink-faint);
+    stroke-dasharray: 4 3;
+  }
+  .flow-svg .dot {
+    fill: var(--brand);
+    filter: drop-shadow(0 0 4px rgba(37,99,235,0.4));
+  }
+  .flow-svg .dot.gold { fill: var(--gold); filter: drop-shadow(0 0 4px rgba(180,83,9,0.4)); }
+
+  .flow-legend {
+    display: flex;
+    justify-content: center;
+    gap: clamp(18px, 2.5vw, 36px);
+    margin-top: clamp(14px, 2vh, 24px);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: clamp(9px, 1vmin, 12px);
+    color: var(--ink-mute);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .flow-legend .leg { display: inline-flex; align-items: center; gap: 0.6em; }
+  .flow-legend .swatch { width: 12px; height: 12px; border-radius: 3px; border: 1px solid; }
+  .flow-legend .leg.llm .swatch { background: rgba(37, 99, 235, 0.06); border-color: var(--brand); }
+  .flow-legend .leg.solver .swatch { background: rgba(180, 83, 9, 0.06); border-color: var(--gold); }
+  .flow-legend .leg.io .swatch { background: var(--bg-3); border-color: var(--line-mid); }
+  .flow-legend .leg.safety .swatch { background: var(--bg-2); border: 1px dashed var(--ink-faint); }
+
+  /* Zones (insight slide) */
+  .zones-deck { display: grid; grid-template-columns: 1fr 60px 1fr; align-items: stretch; }
+  @media (max-aspect-ratio: 4/3) {
+    .zones-deck { grid-template-columns: 1fr; }
+    .zone-arrow { display: none; }
+  }
+  .zone-panel {
+    padding: clamp(20px, 2.5vh, 32px) clamp(20px, 2vw, 32px);
+    background: var(--bg-2); border: 1px solid var(--line); border-radius: 14px;
+    display: flex; flex-direction: column;
+  }
+  .zone-panel.right { border-color: rgba(230, 201, 146, 0.2); }
+  .zone-tag { font-family: 'JetBrains Mono', monospace; font-size: clamp(9px, 0.95vmin, 13px); color: var(--brand); font-weight: 600; letter-spacing: 0.18em; margin-bottom: 0.4em; }
+  .zone-panel.right .zone-tag { color: var(--gold); }
+  .zone-head { font-family: 'Fraunces', serif; font-size: clamp(20px, 2.6vmin, 32px); font-weight: 500; color: var(--ink-pure); margin-bottom: 0.15em; letter-spacing: -0.02em; line-height: 1.1; }
+  .zone-role { font-size: clamp(11px, 1.15vmin, 14px); color: var(--ink-mute); margin-bottom: clamp(14px, 2vh, 24px); font-style: italic; }
+  .zone-panel { counter-reset: z; }
+  .zone-questions { list-style: none; padding: 0; margin: 0; border-top: 1px solid var(--line); }
+  .zone-questions li { padding: clamp(8px, 1.4vh, 14px) 0; border-bottom: 1px solid var(--line); font-size: clamp(12px, 1.35vmin, 16px); color: var(--ink); display: flex; align-items: baseline; gap: 1em; }
+  .zone-questions li:last-child { border-bottom: none; }
+  .zone-questions li::before { content: counter(z, decimal-leading-zero); counter-increment: z; font-family: 'JetBrains Mono', monospace; font-size: clamp(8px, 0.9vmin, 11px); color: var(--brand); letter-spacing: 0.1em; min-width: 2em; }
+  .zone-panel.right .zone-questions li::before { color: var(--gold); }
+  .zone-foot { margin-top: auto; padding-top: clamp(10px, 1.5vh, 18px); font-size: clamp(10px, 1vmin, 13px); color: var(--ink-faint); font-style: italic; }
+
+  .zone-arrow { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.5em; }
+  .zone-arrow svg { width: 60px; height: 30px; }
+  .zone-arrow .label { font-family: 'JetBrains Mono', monospace; font-size: clamp(8px, 0.85vmin, 11px); color: var(--gold); letter-spacing: 0.22em; text-transform: uppercase; }
+
+  /* Terminal block */
+  .terminal {
+    background: var(--bg-2);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    overflow: hidden;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: clamp(10px, 1.15vmin, 14px);
+    margin: clamp(8px, 1.2vh, 16px) 0;
+  }
+  .terminal .bar { display: flex; align-items: center; gap: 0.4em; padding: 8px 14px; background: var(--bg-3); border-bottom: 1px solid var(--line); }
+  .terminal .bar .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--line-mid); }
+  .terminal .bar span:last-child { margin-left: 0.6em; color: var(--ink-faint); font-size: 11px; letter-spacing: 0.06em; }
+  .terminal pre { margin: 0; padding: clamp(14px, 2vh, 22px) clamp(16px, 2vw, 24px); color: var(--ink); line-height: 1.7; overflow-x: auto; }
+  .terminal pre .kw { color: var(--brand); }
+  .terminal pre .fn { color: var(--gold); }
+  .terminal pre .str { color: var(--green); }
+  .terminal pre .num { color: var(--brand-soft); }
+  .terminal pre .cmt { color: var(--ink-dim); font-style: italic; }
+  .terminal pre .var { color: var(--ink-hi); }
+
+  /* Results table */
+  .data-table { width: 100%; border-collapse: collapse; }
+  .data-table th {
+    text-align: left;
+    padding: clamp(10px, 1.5vh, 14px) clamp(12px, 1.4vw, 18px);
+    background: var(--bg-2);
+    color: var(--brand-soft);
+    font-weight: 600;
+    font-size: clamp(9px, 1vmin, 12px);
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--line-mid);
+  }
+  .data-table th.r { text-align: right; }
+  .data-table td {
+    padding: clamp(9px, 1.3vh, 13px) clamp(12px, 1.4vw, 18px);
+    border-bottom: 1px solid var(--line);
+    font-size: clamp(11px, 1.3vmin, 15px);
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .data-table td.r { text-align: right; }
+  .data-table td.bench { color: var(--ink-hi); font-weight: 500; }
+  .data-table .speedup-pos { color: var(--brand-soft); }
+  .data-table .speedup-big { color: var(--gold); font-weight: 700; }
+  .data-table .speedup-flat { color: var(--ink-faint); }
+
+  .recipe-bar {
+    margin-top: clamp(14px, 2vh, 22px);
+    padding: clamp(12px, 2vh, 22px) clamp(18px, 2.5vw, 32px);
+    background: var(--bg-2);
+    border-left: 3px solid var(--gold);
+    border-radius: 0 8px 8px 0;
+    display: flex; align-items: center; gap: 1em;
+  }
+  .recipe-bar .arrow { font-family: 'Fraunces', serif; font-style: italic; font-size: clamp(20px, 2.5vmin, 28px); color: var(--gold); line-height: 1; }
+  .recipe-bar .text { font-family: 'Fraunces', serif; font-size: clamp(14px, 1.7vmin, 21px); color: var(--ink-hi); font-weight: 500; flex: 1; line-height: 1.4; }
+  .recipe-bar strong {
+    background: linear-gradient(135deg, var(--brand-soft), var(--gold));
+    -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+    font-weight: 600;
+  }
+
+  /* Closing */
+  .closing {
+    background:
+      radial-gradient(ellipse 80% 60% at 50% 50%, rgba(37, 99, 235, 0.08), transparent 65%),
+      radial-gradient(ellipse 40% 40% at 30% 70%, rgba(180, 83, 9, 0.05), transparent 55%),
+      var(--bg) !important;
+    align-items: center !important;
+  }
+  .closing-inner { text-align: center; width: 100%; max-width: 1200px; margin: 0 auto; }
+  .closing-eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: clamp(10px, 1.1vmin, 14px);
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin-bottom: clamp(20px, 3.5vh, 44px);
+  }
+  .closing h2 {
+    font-family: 'Fraunces', serif !important;
+    font-style: italic !important;
+    font-size: clamp(90px, 16vmin, 200px) !important;
+    font-weight: 500 !important;
+    background: linear-gradient(135deg, var(--ink-pure) 0%, var(--brand) 55%, var(--gold) 100%);
+    -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+    margin-bottom: clamp(12px, 2vh, 24px) !important;
+    line-height: 1.05 !important;
+    letter-spacing: -0.04em !important;
+    max-width: 100% !important;
+    padding-bottom: 0.1em !important;
+  }
+  .closing-divider { width: 6em; height: 1px; background: linear-gradient(90deg, transparent, var(--gold), transparent); margin: 0 auto clamp(16px, 2.5vh, 32px); }
+  .closing-name { font-size: clamp(13px, 1.5vmin, 18px); color: var(--ink-mute); margin-bottom: clamp(28px, 5vh, 60px); letter-spacing: 0.02em; }
+  .closing-q { display: inline-block; padding: 0.85em 3em; border: 1px solid var(--line-mid); border-radius: 100px; font-family: 'JetBrains Mono', monospace; font-size: clamp(9px, 1vmin, 13px); letter-spacing: 0.3em; text-transform: uppercase; color: var(--brand-soft); background: rgba(26, 35, 66, 0.5); }
+
+  /* Reveal overrides */
+  .reveal .progress { color: var(--gold); height: 2px; }
+  .reveal .controls { display: none; }
+  .reveal .slide-number { display: none; }
+</style>
+</head>
+<body>
+<div class="reveal">
+<div class="slides">
+
+<!-- ============ COVER ============ -->
+<section class="cover">
+  <div class="cover-inner">
+    <div class="cover-top">
+      <div class="brand-row">
+        <div class="mark"></div>
+        MLSys 2026 · Track B · Agent · Google
+      </div>
+      <div class="talk-id">May 22, 2026</div>
+    </div>
+
+    <div class="cover-center">
+      <div class="cover-title">
+        A Multi-Agent <em>LLM Pipeline</em><br/>
+        for Memory-Constrained<br/>
+        Tensor DAG Scheduling
+      </div>
+    </div>
+
+    <div class="cover-bottom">
+      <div>
+        <div class="b-label">Presented by</div>
+        <div class="b-value">Bharath Velamala</div>
+      </div>
+      <div>
+        <div class="b-label">Submission</div>
+        <div class="b-value">MLSys2026_TrackB_Bharath</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ PROBLEM ============ -->
+<section>
+  <div class="deck-header">
+    <div class="brand"><div class="brand-mark"></div>Multi-Agent LLM Pipeline · MLSys 2026 · Google</div>
+    <div class="talk-id">Problem</div>
+  </div>
+
+  <div class="slide-body">
+    <div class="slide-kicker">// problem</div>
+    <h2>Schedule a tensor compute graph under a <em>tight memory budget</em>.</h2>
+    <div class="slide-lede">
+      Given a graph of tensor ops and a small fast-memory capacity, decide: which ops run together, at what tile size, and in what order — all at once. Minimize total runtime. Every step must fit in fast memory.
+    </div>
+
+    <div class="grid g2">
+      <div class="card accent-left">
+        <div class="card-tag">hard constraint</div>
+        <h4>Memory fits every step</h4>
+        <div class="formula">
+          <span class="lhs">inputs</span> <span class="op">+</span> <span class="lhs">outputs</span> <span class="op">+</span> <span class="lhs">resident</span><br/>
+          <span class="op">&nbsp;&nbsp;&nbsp;≤</span> <span class="lhs">fast memory capacity</span>
+        </div>
+        <p>Tiling below native granularity pads compute. A smaller tile is not cheaper, because each tile pays the full base cost.</p>
+      </div>
+      <div class="card accent-left">
+        <div class="card-tag">objective</div>
+        <h4>Minimize tile runtime</h4>
+        <div class="formula">
+          <span class="lhs">tile cost</span> <span class="op">=</span> <span class="lhs">max(compute, memory transfer)</span><br/>
+          <span class="lhs">total</span> <span class="op">=</span> <span class="lhs">Σ (tile cost × num tiles) over groups</span>
+        </div>
+        <p>Fusing ops into one group eliminates slow-memory round trips between them. That is where the speedup comes from.</p>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="deck-footer">
+    <div class="section-label">Problem</div>
+    <div class="page-num"><span class="current">01</span><span class="sep">/</span>04</div>
+  </div>
+</section>
+
+<!-- ============ APPROACH (zones) ============ -->
+<section>
+  <div class="deck-header">
+    <div class="brand"><div class="brand-mark"></div>Multi-Agent LLM Pipeline · MLSys 2026 · Google</div>
+    <div class="talk-id">Approach</div>
+  </div>
+
+  <div class="slide-body">
+    <div class="slide-kicker">// approach</div>
+    <h2>Neurosymbolic split: <em>structure vs. constraints</em>.</h2>
+
+    <div class="zones-deck">
+      <div class="zone-panel">
+        <div class="zone-tag">LLM Zone</div>
+        <div class="zone-head">Combinatorial structure</div>
+        <div class="zone-role">Pattern matching · diverse hypotheses · token-bounded</div>
+        <ul class="zone-questions">
+          <li>Which ops fuse into a subgraph? <span class="mono" style="opacity:0.75;">(MatMul chain · pointwise · mixed)</span></li>
+          <li>Which tensors to retain across steps?</li>
+          <li>Snake vs raster traversal hint?</li>
+        </ul>
+        <div class="zone-foot">Output: JSON sketch · numerics ignored downstream</div>
+      </div>
+      <div class="zone-arrow">
+        <svg viewBox="0 0 60 30" fill="none">
+          <path d="M4 15 L56 15 M44 6 L56 15 L44 24" stroke="url(#g1)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <defs>
+            <linearGradient id="g1" x1="0" y1="0" x2="60" y2="0">
+              <stop offset="0%" stop-color="#2563eb"/>
+              <stop offset="100%" stop-color="#b45309"/>
+            </linearGradient>
+          </defs>
+        </svg>
+        <div class="label">solved</div>
+      </div>
+      <div class="zone-panel right">
+        <div class="zone-tag">Solver Zone</div>
+        <div class="zone-head">Constraint satisfaction</div>
+        <div class="zone-role">Deterministic CSP search · byte-exact</div>
+        <ul class="zone-questions">
+          <li>Largest <span class="mono">[w,h,k]</span> satisfying working-set inequality?</li>
+          <li>Dependency ordering valid (producer step ≤ consumer step)?</li>
+          <li>Roofline latency per tile?</li>
+        </ul>
+        <div class="zone-foot">LLM never sees an invalid solution accepted</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="deck-footer">
+    <div class="section-label">Approach</div>
+    <div class="page-num"><span class="current">02</span><span class="sep">/</span>04</div>
+  </div>
+</section>
+
+<!-- ============ ANIMATED FLOW CHART ============ -->
+<section>
+  <div class="deck-header">
+    <div class="brand"><div class="brand-mark"></div>Multi-Agent LLM Pipeline · MLSys 2026 · Google</div>
+    <div class="talk-id">Pipeline</div>
+  </div>
+
+  <div class="slide-body">
+    <div class="slide-kicker">// pipeline · techniques per phase</div>
+    <h2>Five phases · <em>technique mapped per node</em>.</h2>
+    <div class="slide-lede" style="margin-bottom: clamp(10px,1.5vh,18px);">
+      <strong style="color:var(--gold)">Solid:</strong> happy path &nbsp;·&nbsp; <strong style="color:var(--ink-hi)">Dashed:</strong> invalid output → refiner (retry up to 3×) → greedy fallback (always valid)
+    </div>
+
+    <div class="flow-wrap">
+      <svg class="flow-svg" viewBox="0 -30 1400 460" preserveAspectRatio="xMidYMid meet">
+        <defs>
+          <!-- Reusable arrow head -->
+          <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="#c4c9e0"/>
+          </marker>
+          <marker id="arrow-gold" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="#b45309"/>
+          </marker>
+          <marker id="arrow-dash" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="#9aa0bc"/>
+          </marker>
+
+          <!-- Solid happy-path connections (animated dots) -->
+          <path id="p1" d="M 130 230 L 230 230" />
+          <path id="p2a" d="M 400 230 C 460 230 460 100 530 100" />
+          <path id="p2b" d="M 400 230 L 530 230" />
+          <path id="p2c" d="M 400 230 C 460 230 460 360 530 360" />
+          <path id="p3a" d="M 700 100 C 770 100 770 230 830 230" />
+          <path id="p3b" d="M 700 230 L 830 230" />
+          <path id="p3c" d="M 700 360 C 770 360 770 230 830 230" />
+          <path id="p4" d="M 1000 230 L 1090 230" />
+          <path id="p6" d="M 1240 230 L 1290 230" />
+          <!-- Recovery: greedy fallback delivers the final schedule -->
+          <path id="p_recover" d="M 1340 135 L 1340 200" />
+          <!-- Conditional (dashed): Validator → Refiner (when no valid candidate from planners) -->
+          <path id="p_to_refiner" d="M 990 195 L 990 80 L 1090 80" />
+          <!-- Conditional (dashed): Refiner → Solver (retry loop) -->
+          <path id="p_loop" d="M 1165 65 L 1165 30 L 915 30 L 915 192" />
+          <!-- Conditional (dashed): Refiner → Greedy fallback (retries exhausted) -->
+          <path id="pfail" d="M 1240 100 L 1290 100" />
+        </defs>
+
+        <!-- Solid happy-path edges -->
+        <use href="#p1" class="path-line" marker-end="url(#arrow)"/>
+        <use href="#p2a" class="path-line" marker-end="url(#arrow)"/>
+        <use href="#p2b" class="path-line" marker-end="url(#arrow)"/>
+        <use href="#p2c" class="path-line" marker-end="url(#arrow)"/>
+        <use href="#p3a" class="path-line" marker-end="url(#arrow)"/>
+        <use href="#p3b" class="path-line" marker-end="url(#arrow)"/>
+        <use href="#p3c" class="path-line" marker-end="url(#arrow)"/>
+        <use href="#p4" class="path-line" marker-end="url(#arrow-gold)"/>
+        <use href="#p6" class="path-line" marker-end="url(#arrow-gold)"/>
+        <use href="#p_recover" class="path-line" marker-end="url(#arrow-gold)"/>
+
+        <!-- Conditional dashed edges -->
+        <use href="#p_to_refiner" class="path-line dashed" marker-end="url(#arrow-dash)"/>
+        <use href="#p_loop" class="path-line dashed" marker-end="url(#arrow-dash)"/>
+        <use href="#pfail" class="path-line dashed" marker-end="url(#arrow-dash)"/>
+
+        <!-- Animated dots -->
+        <circle r="4" class="dot"><animateMotion dur="2.4s" repeatCount="indefinite" begin="0s"><mpath href="#p1"/></animateMotion></circle>
+        <circle r="4" class="dot"><animateMotion dur="2.4s" repeatCount="indefinite" begin="0.4s"><mpath href="#p2a"/></animateMotion></circle>
+        <circle r="4" class="dot"><animateMotion dur="2.4s" repeatCount="indefinite" begin="0.4s"><mpath href="#p2b"/></animateMotion></circle>
+        <circle r="4" class="dot"><animateMotion dur="2.4s" repeatCount="indefinite" begin="0.4s"><mpath href="#p2c"/></animateMotion></circle>
+        <circle r="4" class="dot gold"><animateMotion dur="2.4s" repeatCount="indefinite" begin="1.0s"><mpath href="#p3a"/></animateMotion></circle>
+        <circle r="4" class="dot gold"><animateMotion dur="2.4s" repeatCount="indefinite" begin="1.0s"><mpath href="#p3b"/></animateMotion></circle>
+        <circle r="4" class="dot gold"><animateMotion dur="2.4s" repeatCount="indefinite" begin="1.0s"><mpath href="#p3c"/></animateMotion></circle>
+        <circle r="4" class="dot"><animateMotion dur="2.4s" repeatCount="indefinite" begin="1.4s"><mpath href="#p4"/></animateMotion></circle>
+        <circle r="4" class="dot gold"><animateMotion dur="2.4s" repeatCount="indefinite" begin="1.8s"><mpath href="#p6"/></animateMotion></circle>
+
+        <!-- Nodes -->
+        <!-- Input -->
+        <g>
+          <rect x="20" y="200" width="110" height="60" rx="10" class="node io"/>
+          <text x="75" y="225" text-anchor="middle" class="label">Problem</text>
+          <text x="75" y="247" text-anchor="middle" class="sub">JSON</text>
+        </g>
+
+        <!-- Analyzer -->
+        <g>
+          <rect x="230" y="195" width="170" height="70" rx="12" class="node llm"/>
+          <text x="315" y="215" text-anchor="middle" class="tag">1 · LLM × 1</text>
+          <text x="315" y="238" text-anchor="middle" class="label">Analyzer</text>
+          <text x="315" y="258" text-anchor="middle" class="sub">DAG metrics</text>
+        </g>
+
+        <!-- Phase 2 bracket: visually groups the 3 planners under their technique label -->
+        <rect x="510" y="28" width="210" height="26" rx="6" fill="#fff8ee" stroke="#b45309" stroke-width="1.2" opacity="1"/>
+        <text x="615" y="46" text-anchor="middle" fill="#b45309" font-weight="700" style="font-size:12px; font-family: 'JetBrains Mono', monospace; letter-spacing: 0.04em;">Op Fusion · Best-of-N (N=3)</text>
+
+        <!-- Planners (3 parallel) -->
+        <g>
+          <rect x="530" y="65" width="170" height="70" rx="12" class="node llm"/>
+          <text x="615" y="85" text-anchor="middle" class="tag">2a · LLM</text>
+          <text x="615" y="108" text-anchor="middle" class="label">Aggressive</text>
+          <text x="615" y="128" text-anchor="middle" class="sub">fusion-first</text>
+        </g>
+        <g>
+          <rect x="530" y="195" width="170" height="70" rx="12" class="node llm"/>
+          <text x="615" y="215" text-anchor="middle" class="tag">2b · LLM ‖</text>
+          <text x="615" y="238" text-anchor="middle" class="label">Balanced</text>
+          <text x="615" y="258" text-anchor="middle" class="sub">critical-path</text>
+        </g>
+        <g>
+          <rect x="530" y="325" width="170" height="70" rx="12" class="node llm"/>
+          <text x="615" y="345" text-anchor="middle" class="tag">2c · LLM</text>
+          <text x="615" y="368" text-anchor="middle" class="label">Conservative</text>
+          <text x="615" y="388" text-anchor="middle" class="sub">native gran</text>
+        </g>
+
+        <!-- Validate + Granularity -->
+        <g>
+          <rect x="830" y="195" width="170" height="70" rx="12" class="node solver"/>
+          <text x="915" y="215" text-anchor="middle" class="tag gold">3 · SOLVER</text>
+          <text x="915" y="238" text-anchor="middle" class="label">Validate + CSP</text>
+          <text x="915" y="258" text-anchor="middle" class="sub">validate · find [w,h,k]</text>
+        </g>
+        <!-- Handoff label: LLM emits grouping → Solver computes numerics + ranks -->
+        <text x="915" y="285" text-anchor="middle" fill="#b45309" font-weight="700" style="font-size:12px; font-family: 'JetBrains Mono', monospace;">ranks N → picks min latency</text>
+
+        <!-- Optimizer -->
+        <g>
+          <rect x="1090" y="195" width="150" height="70" rx="12" class="node llm"/>
+          <text x="1165" y="215" text-anchor="middle" class="tag">4 · LLM × 1</text>
+          <text x="1165" y="238" text-anchor="middle" class="label">Optimizer</text>
+          <text x="1165" y="258" text-anchor="middle" class="sub">traversal · retention</text>
+        </g>
+
+        <!-- Refiner (loop) -->
+        <g>
+          <rect x="1090" y="65" width="150" height="70" rx="12" class="node llm"/>
+          <text x="1165" y="85" text-anchor="middle" class="tag">5 · LLM × ≤3</text>
+          <text x="1165" y="108" text-anchor="middle" class="label">Refiner</text>
+          <text x="1165" y="128" text-anchor="middle" class="sub">Reflexion loop</text>
+        </g>
+
+        <!-- Output -->
+        <g>
+          <rect x="1290" y="200" width="100" height="60" rx="10" class="node io"/>
+          <text x="1340" y="225" text-anchor="middle" class="label">Schedule</text>
+          <text x="1340" y="247" text-anchor="middle" class="sub">JSON</text>
+        </g>
+
+        <!-- Fallback (top-right, beside Refiner, above Schedule) -->
+        <g>
+          <rect x="1290" y="65" width="100" height="70" rx="10" class="node safety"/>
+          <text x="1340" y="83" text-anchor="middle" class="tag" style="font-size:9px;">∗ · SAFETY NET</text>
+          <text x="1340" y="105" text-anchor="middle" class="label" style="font-size:13px;">Greedy</text>
+          <text x="1340" y="120" text-anchor="middle" class="label" style="font-size:13px;">fallback</text>
+        </g>
+
+        <!-- Label on p_to_refiner (Validator → Refiner): only when no valid candidate from planners -->
+        <text x="950" y="70" text-anchor="start" class="sub" fill="#8a9ab8">if no valid candidate</text>
+        <!-- Label on p_loop (Refiner → Solver): retry loop -->
+        <text x="1040" y="22" text-anchor="middle" class="sub" fill="#8a9ab8">↺ retry up to 3×</text>
+        <!-- Label on pfail (Refiner → Greedy): exhausted -->
+        <text x="1265" y="65" text-anchor="middle" class="sub" fill="#8a9ab8">exhausted</text>
+        <!-- Label on p_recover (Greedy → Schedule): always-valid output -->
+        <text x="1330" y="172" text-anchor="end" class="sub" fill="#8a9ab8">always-valid</text>
+      </svg>
+
+      <div class="flow-legend">
+        <div class="leg io"><div class="swatch"></div>I/O</div>
+        <div class="leg llm"><div class="swatch"></div>LLM phase</div>
+        <div class="leg solver"><div class="swatch"></div>Solver (deterministic)</div>
+        <div class="leg safety"><div class="swatch"></div>Fallback</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="deck-footer">
+    <div class="section-label">Pipeline</div>
+    <div class="page-num"><span class="current">03</span><span class="sep">/</span>04</div>
+  </div>
+</section>
+
+<!-- ============ LEARNINGS ============ -->
+<section>
+  <div class="deck-header">
+    <div class="brand"><div class="brand-mark"></div>Multi-Agent LLM Pipeline · MLSys 2026 · Google</div>
+    <div class="talk-id">Learnings</div>
+  </div>
+
+  <div class="slide-body">
+    <div class="slide-kicker">// what changed · what broke · what worked</div>
+    <h2>What I built first <em>was not what shipped</em>.</h2>
+
+    <div class="grid g4" style="margin-top: clamp(10px, 1.5vh, 18px);">
+      <div class="card accent-left">
+        <div class="card-tag">vertical · role split</div>
+        <h4>Single agent to orchestrated pipeline</h4>
+        <p>Started with one LLM call doing everything. Quality collapsed on complex graphs. Splitting into specialized phases — Analyzer, Planner, Optimizer, Refiner — each with a focused prompt, recovered it.</p>
+      </div>
+      <div class="card accent-left">
+        <div class="card-tag">horizontal · diversity</div>
+        <h4>Three strategies beat one</h4>
+        <p>A single planner gets stuck on its prior. Three parallel planners with distinct strategies cover the search space — aggressive fusion for compute-bound, conservative for memory-tight. Same wall-clock cost, broader coverage.</p>
+      </div>
+      <div class="card accent-left gold-top">
+        <div class="card-tag gold">bugs found late · validator</div>
+        <h4>Three silent bugs, caught by harder graphs</h4>
+        <p>Dependency ordering was never validated. MatMul op-type lookup used the wrong subgraph op. Output tile count came from the first op only. All three passed shallow tests; only denser DAGs exposed them.</p>
+      </div>
+      <div class="card accent-left gold-top">
+        <div class="card-tag gold">time-aware · budget cascade</div>
+        <h4>Every phase reads the clock first</h4>
+        <p>9.5-min hard cap. Each phase grabs only a fraction of remaining time, skips itself if budget too tight. Greedy fallback runs in milliseconds. Pipeline cannot exceed budget or return nothing.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="deck-footer">
+    <div class="section-label">Learnings</div>
+    <div class="page-num"><span class="current">04</span><span class="sep">/</span>04</div>
+  </div>
+</section>
+
+<!-- ============ CLOSING ============ -->
+<section class="closing">
+  <div class="closing-inner">
+    <div class="closing-eyebrow">Multi-Agent LLM Pipeline · Memory-Constrained DAG Scheduling</div>
+    <h2>Thank you</h2>
+    <div class="closing-divider"></div>
+    <div class="closing-name">Bharath Velamala &nbsp;·&nbsp; MLSys 2026 Track B &nbsp;·&nbsp; May 22</div>
+  </div>
+</section>
+
+</div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/dist/reveal.js"></script>
+<script>
+  Reveal.initialize({
+    hash: true,
+    transition: 'none',
+    backgroundTransition: 'none',
+    controls: false,
+    progress: true,
+    center: false,
+    width: '100%',
+    height: '100%',
+    margin: 0,
+    minScale: 1,
+    maxScale: 1,
+    disableLayout: true,
+  });
+</script>
+</body>
+</html>
