@@ -1,5 +1,0 @@
-google-genai>=1.0.0
-networkx>=3.6.1
-pydantic>=2.12.5
-python-dotenv>=1.0.0
-rich>=14.3.3

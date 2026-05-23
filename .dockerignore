@@ -9,7 +9,8 @@ tests/
 metrics/
 img/
 output/
-*.md
 *.lock
-*.toml
 .DS_Store
+
+# Allow pyproject.toml (needed for `pip install .`) and README.md (required by pyproject)
+# All other .toml/.md are excluded by being unlisted in build context COPY directives

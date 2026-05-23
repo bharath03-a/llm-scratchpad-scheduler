@@ -1,5 +1,5 @@
 [project]
-name = "llm-scratchpad-scheduler"
+name = "scratchpad-scheduler-agent"
 version = "0.1.0"
 description = "MLSys 2026 Track B: Agent Reasoning Solution"
 readme = "README.md"
@@ -11,3 +11,15 @@ dependencies = [
     "python-dotenv>=1.0.0",
     "rich>=14.3.3",
 ]
+
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+
+[tool.ruff.lint.per-file-ignores]
+# score.py inserts repo root into sys.path before imports — intentional
+"metrics/score.py" = ["E402"]
+
+[tool.black]
+line-length = 110
+target-version = ["py312"]

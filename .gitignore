@@ -15,5 +15,8 @@ files/
 output/
 tests/
 
-*.html
 .DS_Store
+
+# Local agent state
+.claude/
+temp/
