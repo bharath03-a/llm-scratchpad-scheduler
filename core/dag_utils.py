@@ -1,7 +1,7 @@
 """DAG utilities using NetworkX for structural analysis of scheduling problems."""
+
 from __future__ import annotations
 
-import math
 from typing import Any
 
 import networkx as nx
@@ -63,10 +63,9 @@ def matmul_chains(problem: dict[str, Any], G: nx.DiGraph) -> list[list[int]]:
         while True:
             # Only extend chain if there is a single MatMul successor with no other predecessors
             succs = [
-                s for s in G.successors(current)
-                if problem["op_types"][s] == "MatMul"
-                and s not in visited
-                and G.in_degree(s) == 1
+                s
+                for s in G.successors(current)
+                if problem["op_types"][s] == "MatMul" and s not in visited and G.in_degree(s) == 1
             ]
             if not succs:
                 break

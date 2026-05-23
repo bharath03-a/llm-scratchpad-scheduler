@@ -190,8 +190,7 @@ def main() -> None:
         )
 
     console.print(
-        "\n[dim]To run the agent on all problems:[/dim] "
-        "[cyan]uv run python3 score.py --run[/cyan]"
+        "\n[dim]To run the agent on all problems:[/dim] " "[cyan]uv run python3 score.py --run[/cyan]"
     )
     console.print(
         "[dim]To run on a single problem:[/dim] "

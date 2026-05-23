@@ -3,6 +3,7 @@ Fixed latency calculation.
 BUG-5 fix: use the external outputs of a subgraph (not just first op's output) for tile counts.
 Handles split-K multi-step accumulation for MatMul operations.
 """
+
 from __future__ import annotations
 
 import math
@@ -151,11 +152,9 @@ def calculate_subgraph_latency(
                 rhs_tensors.append(t)
         # Pointwise external inputs are streamed per-tile (w*h each)
 
-    lhs_size = (problem["widths"][lhs_tensor] * problem["heights"][lhs_tensor]
-                if lhs_tensor is not None else 0)
+    lhs_size = problem["widths"][lhs_tensor] * problem["heights"][lhs_tensor] if lhs_tensor is not None else 0
     rhs_strip_size = sum(w * k for t in rhs_tensors)
-    pointwise_input_size = sum(w * h for t, op in external_inputs
-                               if problem["op_types"][op] != "MatMul")
+    pointwise_input_size = sum(w * h for t, op in external_inputs if problem["op_types"][op] != "MatMul")
     output_size = len(evicted_outs) * w * h
 
     pass0_mem = (lhs_size + rhs_strip_size + pointwise_input_size) / bandwidth

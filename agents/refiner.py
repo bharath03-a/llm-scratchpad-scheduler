@@ -3,6 +3,7 @@ Solution Refiner Agent.
 Given a solution that failed validation, and the specific error list,
 makes targeted corrections to produce a valid schedule.
 """
+
 from __future__ import annotations
 
 import json
@@ -55,10 +56,17 @@ class RefinerAgent(BaseAgent):
 """
         num_ops = len(problem["op_types"])
         max_tokens = max(8192, min(65536, num_ops * 1000))
-        print(f"  [Refiner] Fixing {len(errors)} error(s) (max_tokens={max_tokens}, thinking=off)...", file=sys.stderr)
+        print(
+            f"  [Refiner] Fixing {len(errors)} error(s) (max_tokens={max_tokens}, thinking=off)...",
+            file=sys.stderr,
+        )
         text = await self._call_llm(
-            prompt, temperature=0.1, max_tokens=max_tokens,
-            json_output=True, label="Refiner", thinking_budget=0,
+            prompt,
+            temperature=0.1,
+            max_tokens=max_tokens,
+            json_output=True,
+            label="Refiner",
+            thinking_budget=0,
         )
         result = self.extract_json(text)
         if result:

@@ -6,6 +6,7 @@ Runs THREE concurrent LLM calls, each with a different scheduling strategy:
   - CONSERVATIVE: maximize granularity (least splitting), accept more spilling
 Each agent receives the same analysis context but different strategy instructions.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -99,10 +100,16 @@ Output this exact JSON structure:
         num_ops = len(problem["op_types"])
         max_tokens = max(8192, min(65536, num_ops * 1000))
 
-        print(f"  [Planner/{strategy}] Generating schedule (max_tokens={max_tokens}, thinking=off)...", file=sys.stderr)
+        print(
+            f"  [Planner/{strategy}] Generating schedule (max_tokens={max_tokens}, thinking=off)...",
+            file=sys.stderr,
+        )
         text = await self._call_llm(
-            prompt, temperature=0.2, max_tokens=max_tokens,
-            json_output=True, label=f"Planner/{strategy}",
+            prompt,
+            temperature=0.2,
+            max_tokens=max_tokens,
+            json_output=True,
+            label=f"Planner/{strategy}",
             thinking_budget=0,
         )
         result = self.extract_json(text)
@@ -112,7 +119,10 @@ Output this exact JSON structure:
             head = text[:300] if text else "<empty>"
             tail = text[-200:] if len(text) > 300 else ""
             snippet = f"{head}…[{len(text)} chars total]…{tail}" if tail else (head or "<empty>")
-            print(f"  [Planner/{strategy}] Failed to parse JSON ({len(text)} chars). Snippet: {snippet!r}", file=sys.stderr)
+            print(
+                f"  [Planner/{strategy}] Failed to parse JSON ({len(text)} chars). Snippet: {snippet!r}",
+                file=sys.stderr,
+            )
         return result
 
 
@@ -130,10 +140,7 @@ async def run_parallel_planners(
     ]
     results = await asyncio.gather(*tasks, return_exceptions=True)
     strategies = ("aggressive", "balanced", "conservative")
-    return [
-        (s, r if isinstance(r, dict) else None)
-        for s, r in zip(strategies, results)
-    ]
+    return [(s, r if isinstance(r, dict) else None) for s, r in zip(strategies, results)]
 
 
 def _format_problem(problem: dict[str, Any]) -> str:

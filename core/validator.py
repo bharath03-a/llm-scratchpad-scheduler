@@ -5,6 +5,7 @@ Fixes all bugs from the original implementation:
   - BUG-2: Mixed-subgraph op-type routing (always used subgraph[0]; now finds actual consuming op)
   - BUG-5: Output tile count from first op only (now uses external-output detection)
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -13,6 +14,7 @@ from typing import Any
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
+
 
 def _tensor_to_producer(problem: dict[str, Any]) -> dict[int, int]:
     mapping: dict[int, int] = {}
@@ -46,6 +48,7 @@ def _external_outputs(subgraph: list[int], problem: dict[str, Any]) -> set[int]:
 # ---------------------------------------------------------------------------
 # Working-set check  (BUG-2 fixed)
 # ---------------------------------------------------------------------------
+
 
 def check_memory_constraints(
     problem: dict[str, Any],
@@ -84,11 +87,11 @@ def check_memory_constraints(
             op_inputs = problem["inputs"][op]
 
             if op_type == "MatMul" and len(op_inputs) >= 2:
-                if t == op_inputs[0]:        # LHS slice: k × h
+                if t == op_inputs[0]:  # LHS slice: k × h
                     slice_size = k * h
-                else:                         # RHS slice: w × k
+                else:  # RHS slice: w × k
                     slice_size = w * k
-            else:                             # Pointwise slice: w × h
+            else:  # Pointwise slice: w × h
                 slice_size = w * h
 
             working_set += slice_size
@@ -105,6 +108,7 @@ def check_memory_constraints(
 # ---------------------------------------------------------------------------
 # Dependency-ordering validation  (BUG-1: was completely missing)
 # ---------------------------------------------------------------------------
+
 
 def validate_dependency_ordering(
     problem: dict[str, Any],
@@ -148,6 +152,7 @@ def validate_dependency_ordering(
 # ---------------------------------------------------------------------------
 # Full solution validator
 # ---------------------------------------------------------------------------
+
 
 def validate_solution(
     problem: dict[str, Any],

@@ -19,11 +19,10 @@ Design principles:
   - Every candidate passes through identical deterministic validation (no silent failures)
   - Graceful multi-tier fallback: best invalid → refiner → algorithmic fallback
 """
+
 from __future__ import annotations
 
 import asyncio
-import json
-import sys
 import time
 from typing import Any
 
@@ -49,13 +48,13 @@ TIMEOUT_SECONDS = 570  # 9.5 min hard limit (competition is 10 min)
 # Fallback solution (deterministic, always valid)
 # ---------------------------------------------------------------------------
 
+
 def _generate_fallback(problem: dict[str, Any]) -> dict[str, Any]:
     """
     One subgraph per operation, using the largest valid granularity for each.
     Always produces a valid (if sub-optimal) solution.
     """
     from core.granularity import find_optimal_granularity
-    from core.dag_utils import compute_analysis
     from networkx import topological_sort
     from core.dag_utils import build_dag
 
@@ -90,6 +89,7 @@ def _generate_fallback(problem: dict[str, Any]) -> dict[str, Any]:
 # Solution ranking
 # ---------------------------------------------------------------------------
 
+
 def _total_latency(sol: dict[str, Any]) -> float:
     lats = sol.get("subgraph_latencies") or []
     return sum(lats) if lats else float("inf")
@@ -106,6 +106,7 @@ def _rank_valid(candidates: list[dict[str, Any]]) -> dict[str, Any] | None:
 # ---------------------------------------------------------------------------
 # Core async pipeline
 # ---------------------------------------------------------------------------
+
 
 async def _run_pipeline(
     client: genai.Client,
@@ -258,6 +259,7 @@ async def _run_pipeline(
 # ---------------------------------------------------------------------------
 # Public entry point
 # ---------------------------------------------------------------------------
+
 
 class Orchestrator:
     def __init__(self, api_key: str, model_name: str = "gemini-2.5-flash") -> None:

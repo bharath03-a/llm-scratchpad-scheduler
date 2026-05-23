@@ -3,6 +3,7 @@ Problem Analyzer Agent.
 Single focused job: deeply understand the problem structure and produce
 a rich analysis context that all downstream agents will use.
 """
+
 from __future__ import annotations
 
 import sys

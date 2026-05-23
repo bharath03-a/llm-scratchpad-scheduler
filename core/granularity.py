@@ -4,6 +4,7 @@ Given a set of subgraph groupings (decided by the LLM), finds the OPTIMAL (large
 granularity for each subgraph that still satisfies memory constraints.
 This removes the burden from the LLM and guarantees constraint satisfaction.
 """
+
 from __future__ import annotations
 
 import math
@@ -20,12 +21,27 @@ def _candidate_granularities(native_w: int, native_h: int, has_matmul: bool) -> 
     candidates: list[list[int]] = []
 
     # Generate power-of-2 w and h down to 1
-    w_vals = [native_w // (2 ** i) for i in range(int(math.log2(native_w)) + 1) if native_w // (2 ** i) >= 1]
-    h_vals = [native_h // (2 ** i) for i in range(int(math.log2(native_h)) + 1) if native_h // (2 ** i) >= 1]
+    w_vals = [native_w // (2**i) for i in range(int(math.log2(native_w)) + 1) if native_w // (2**i) >= 1]
+    h_vals = [native_h // (2**i) for i in range(int(math.log2(native_h)) + 1) if native_h // (2**i) >= 1]
 
     if has_matmul:
-        k_vals = sorted({native_w, native_w // 2, native_w // 4, native_w // 8,
-                         native_h, native_h // 2, 64, 32, 16, 8, 4, 1}, reverse=True)
+        k_vals = sorted(
+            {
+                native_w,
+                native_w // 2,
+                native_w // 4,
+                native_w // 8,
+                native_h,
+                native_h // 2,
+                64,
+                32,
+                16,
+                8,
+                4,
+                1,
+            },
+            reverse=True,
+        )
         k_vals = [k for k in k_vals if k >= 1]
     else:
         k_vals = [1]

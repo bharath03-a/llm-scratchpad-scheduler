@@ -5,6 +5,7 @@ Takes the best valid candidate solution and refines:
   - Tensor retention strategy
   - Granularity hints (the deterministic optimizer handles the actual values)
 """
+
 from __future__ import annotations
 
 import sys
@@ -30,6 +31,7 @@ class OptimizerAgent(BaseAgent):
         dag_text = format_analysis(dag_analysis)
 
         import json
+
         solution_str = json.dumps(solution, indent=2)
 
         prompt = f"""{_SYSTEM_PROMPT}
@@ -66,10 +68,16 @@ Output ONLY the optimized JSON (same structure, no markdown).
 """
         num_ops = len(problem["op_types"])
         max_tokens = max(8192, min(65536, num_ops * 1000))
-        print(f"  [Optimizer] Optimizing solution (max_tokens={max_tokens}, thinking=off)...", file=sys.stderr)
+        print(
+            f"  [Optimizer] Optimizing solution (max_tokens={max_tokens}, thinking=off)...", file=sys.stderr
+        )
         text = await self._call_llm(
-            prompt, temperature=0.25, max_tokens=max_tokens,
-            json_output=True, label="Optimizer", thinking_budget=0,
+            prompt,
+            temperature=0.25,
+            max_tokens=max_tokens,
+            json_output=True,
+            label="Optimizer",
+            thinking_budget=0,
         )
         result = self.extract_json(text)
         if result:

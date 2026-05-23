@@ -1,4 +1,5 @@
 """Base async Gemini agent with retry logic and robust JSON extraction."""
+
 from __future__ import annotations
 
 import json
@@ -103,7 +104,10 @@ class BaseAgent:
                     candidate = response.candidates[0] if response.candidates else None
                     finish = getattr(candidate, "finish_reason", "?")
                     tag = f"[{label}] " if label else ""
-                    print(f"{tag}Attempt {attempt + 1}: empty response — finish_reason={finish}", file=sys.stderr)
+                    print(
+                        f"{tag}Attempt {attempt + 1}: empty response — finish_reason={finish}",
+                        file=sys.stderr,
+                    )
                     if attempt < self.DEFAULT_MAX_RETRIES - 1:
                         continue
                 return text
@@ -128,6 +132,10 @@ class BaseAgent:
         that benefit from reasoning before producing text.
         """
         return await self._call_llm(
-            prompt, temperature, max_tokens,
-            json_output=False, label=label, thinking_budget=thinking_budget,
+            prompt,
+            temperature,
+            max_tokens,
+            json_output=False,
+            label=label,
+            thinking_budget=thinking_budget,
         )
